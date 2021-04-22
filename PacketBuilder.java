@@ -6,8 +6,10 @@ import java.io.*;
 * Date - 4/22/2021
 */
 public class PacketBuilder implements TFTPConstants{
+   //Packet that will be built by build() or taken from user in the constructor
    private DatagramPacket packet;
    
+   //Attributes
    private InetAddress address = null;
    private int port = 0;
    private int opcode = 0; 
@@ -51,32 +53,36 @@ public class PacketBuilder implements TFTPConstants{
       return data; }
    public int getDataLen() { 
       return dataLen; }
-   
+      
+   /*
+   * build() - takes raw info from user and builds a packet corresponding to the given opcode
+   */
    public DatagramPacket build(){
       packet = null;
       
       switch(opcode){
          case RRQ: //If opcode is 1
             try{ 
-               ByteArrayOutputStream baos = new ByteArrayOutputStream(2 + filename.length() + 1 + "octet".length() + 1); //
+               ByteArrayOutputStream baos = new ByteArrayOutputStream(2 + filename.length() + 1 + "octet".length() + 1); //BAOS is using the amt of bytes for the opcode + filename + octet
                DataOutputStream dos = new DataOutputStream(baos);
                
+               //Writing to the ByteArray (opcode, file name, and addendum)
                dos.writeShort(opcode);
                dos.writeBytes(filename);
                dos.writeByte(0);
                dos.writeBytes("octet");
                dos.writeByte(0);
                dos.close();
-               byte[] holder = baos.toByteArray();
-               packet = new DatagramPacket(holder, holder.length, address, port);
+               byte[] holder = baos.toByteArray(); //taking all data from dos and converting to byte array
+               packet = new DatagramPacket(holder, holder.length, address, port); //Writing necessary data
             }catch(IOException ioe){}
             break;
          case WRQ://If opcode is 2
             try{ 
-               ByteArrayOutputStream baos = new ByteArrayOutputStream(2 + filename.length() + 1 + "octet".length() + 1);
+               ByteArrayOutputStream baos = new ByteArrayOutputStream(2 + filename.length() + 1 + "octet".length() + 1); //BAOS is using the amt of bytes for the opcode + filename + octet
                DataOutputStream dos = new DataOutputStream(baos);
                
-               //Writing to the ByteArray
+               //Writing to the ByteArray (opcode, file name, and addendum)
                dos.writeShort(opcode);
                dos.writeBytes(filename);
                dos.writeByte(0);
@@ -84,8 +90,8 @@ public class PacketBuilder implements TFTPConstants{
                dos.writeByte(0);
             
                dos.close();
-               byte[] holder = baos.toByteArray();
-               packet = new DatagramPacket(holder, holder.length, address, port);
+               byte[] holder = baos.toByteArray(); //taking all data from dos and converting to byte array
+               packet = new DatagramPacket(holder, holder.length, address, port); //Writing necessary data
             }catch(IOException ioe){}
             break;
          case DATA: //If opcode is 3
@@ -94,7 +100,7 @@ public class PacketBuilder implements TFTPConstants{
                   ByteArrayOutputStream baos = new ByteArrayOutputStream(2 + data.length + 2); //BAOS is using the amt of bytes for the opcode + data + dataLen + blockNo
                   DataOutputStream dos = new DataOutputStream(baos);
                   
-                  //Writing to the ByteArray
+                  //Writing to the ByteArray (opcode, block number, data, data length)
                   dos.writeShort(opcode);
                   dos.writeShort(blockNo);
                   dos.write(data, 0, dataLen);
@@ -109,7 +115,7 @@ public class PacketBuilder implements TFTPConstants{
                ByteArrayOutputStream baos = new ByteArrayOutputStream(4); //BAOS is using the amt of bytes for the opcode + blockNo
                DataOutputStream dos = new DataOutputStream(baos);
                
-               //Writing to the ByteArray
+               //Writing to the ByteArray (opcode, block number)
                dos.writeShort(opcode);
                dos.writeShort(blockNo);
                dos.close();
@@ -122,7 +128,7 @@ public class PacketBuilder implements TFTPConstants{
                ByteArrayOutputStream baos = new ByteArrayOutputStream(4 + msg.length()); //BAOS is using the amt of bytes for the opcode + blockNo + the message
                DataOutputStream dos = new DataOutputStream(baos);
                
-               //Writing to the ByteArray
+               //Writing to the ByteArray (opcode, error number, error message)
                dos.writeShort(opcode);
                dos.writeShort(blockNo);
                dos.writeBytes(msg);
@@ -133,9 +139,9 @@ public class PacketBuilder implements TFTPConstants{
             }catch (IOException ioe) {}
             break;
       
-      }
+      } //end of switch
       return packet;
-   }
+   } //end of build()
    
    public void dissect(){
       if (packet != null){
