@@ -203,7 +203,7 @@ public class TFTPServer extends Application implements TFTPConstants{
                   break;
                case 2:
                   log("WRQ process initiated with file name " + pktbR.getFilename());
-                  //doWRQPacket(pktbR);
+                  doWRQPacket(pktbR);
                   break;
                case 3:
                   log("Invalid opcode sent: " + pktbR.getOpcode());
@@ -236,6 +236,7 @@ public class TFTPServer extends Application implements TFTPConstants{
             File f = new File(fileName);
             fis = new FileInputStream(f);
          }catch (IOException ioe){
+            log("RRQ - Error reading file.");
             sendErrPkt(5, pktb.getPort(), pktb.getAddress(), 4, null, "Error reading file", null, 0);
          } 
          //read file
@@ -302,25 +303,35 @@ public class TFTPServer extends Application implements TFTPConstants{
                log("WRQ - Timed out awaiting DATA packet");
                return;
             }catch(IOException ioe){}
+            
             log("WRQ - Server received " /*+ PacketChecker.decode(pktIn)*/);
             
-            blockSize = fSize; //Making sure there's still data left in the file to read and send
-            DatagramPacket ackPkt = new DatagramPacket(new byte[1500], MAX_PACKET_SIZE);
-            try{
-               clientSocket.receive(ackPkt);
-            }catch (SocketTimeoutException ste){
-               log("RRQ - Timed out waiting for ACK from client");
-            }catch(IOException ioe) {}
+            PacketBuilder pktbIn = new PacketBuilder(pktIn);
+            pktbIn.dissect();
             
-            PacketBuilder ackPktb = new PacketBuilder(ackPkt);
-            ackPktb.dissect();
-            if (ackPktb.getOpcode() != ACK){
-               sendErrPkt(5, ackPktb.getPort(), ackPktb.getAddress(), 4, null, "Illegal opcode: " + ackPktb.getOpcode() , null, 0);
+            if (pktbIn.getOpcode() == 5){
+               log(pktbIn.getMsg()); //If error packet, we cant send it to dos
+               return;
+            }else if (pktbIn.getOpcode() != 3){ //If illegal opcode
+               sendErrPkt(5, pktbIn.getPort(), pktbIn.getAddress(), 4, null, "Illegal opcode: " + pktbIn.getOpcode() , null, 0);
+               return;
+            }else{
+               try{ //Set block variable to remaining data length; if less than 512, we have parsed all of the file
+                  blockSize = pktbIn.getDataLen();
+                  dos.write(pktbIn.getData(), 0, pktbIn.getDataLen());
+                  dos.flush();
+               }catch (IOException ioe){ log("WRQ - Error writing data");} 
             }
-           blockNo++; 
          }
+         try{
+            clientSocket.close();
+            dos.close();
+         }catch(Exception e) {}
+         
       }
-      
+      /*
+      * sendErrPkt() - sends an error packet
+      */
       private void sendErrPkt(int _opcode, int _port, InetAddress _address, int _blockNo, String _filename, String _msg, byte[] _data, int _dataLen){
          try{
             PacketBuilder errPkt = new PacketBuilder(_opcode, _port, _address, _blockNo,  _filename, _msg, _data, _dataLen);
