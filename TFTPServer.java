@@ -254,7 +254,58 @@ public class TFTPServer extends Application implements TFTPConstants{
             }catch (IOException ioe){}
             
             blockSize = fSize; //Making sure there's still data left in the file to read and send
-            DatagramPacket ackPkt = new DatagramPacket(new byte[1500], 1500);
+            DatagramPacket ackPkt = new DatagramPacket(new byte[1500], MAX_PACKET_SIZE);
+            try{
+               clientSocket.receive(ackPkt);
+            }catch (SocketTimeoutException ste){
+               log("RRQ - Timed out awaiting ACK packet");
+            }catch(IOException ioe) {}
+            
+            PacketBuilder ackPktb = new PacketBuilder(ackPkt);
+            ackPktb.dissect();
+            if (ackPktb.getOpcode() != ACK){
+               sendErrPkt(5, ackPktb.getPort(), ackPktb.getAddress(), 4, null, "Illegal opcode: " + ackPktb.getOpcode() , null, 0);
+            }
+           blockNo++; 
+         }
+      }
+      
+      private void doWRQPacket(PacketBuilder pktb){
+         //Find filename
+         String fileName = tfFolder.getText() + File.separator + pktb.getFilename();
+         log("WRQ - Opening " + fileName + "...");
+         try{
+            File f = new File(fileName);
+            dos = new DataOutputStream(new FileOutputStream(f));
+         }catch (IOException ioe){
+            sendErrPkt(5, pktb.getPort(), pktb.getAddress(), 4, null, "Error reading file", null, 0);
+            return;
+         } 
+         //read file
+         int blockSize = 512;
+         int fSize = 0;
+         int blockNo = 1;
+         while(true){
+            //Send ACK packet
+            //First action in the while loop because we need to respond to the initial WRQ packet
+            try{
+               PacketBuilder pktOut = new PacketBuilder(4, pktb.getPort(), pktb.getAddress(), blockNo, null, null, null, null);
+               log("WRQ - Server sending " /*+ PacketChecker.decode(pktOut)*/);
+               clientSocket.send(pktOut.build());
+            }catch (IOException ioe){}
+            if (blockSize < 512) break; //If all the file data has been written, break
+            
+            DatagramPacket pktIn = new DatagramPacket(new byte[1500], MAX_PACKET_SIZE);
+            try{
+               csocket.receive(pktIn);
+            }catch(SocketTimeoutException ste) {
+               log("WRQ - Timed out awaiting DATA packet");
+               return;
+            }
+            log("WRQ - Server received " /*+ PacketChecker.decode(pktIn)*/);
+            
+            blockSize = fSize; //Making sure there's still data left in the file to read and send
+            DatagramPacket ackPkt = new DatagramPacket(new byte[1500], MAX_PACKET_SIZE);
             try{
                clientSocket.receive(ackPkt);
             }catch (SocketTimeoutException ste){
@@ -263,7 +314,7 @@ public class TFTPServer extends Application implements TFTPConstants{
             
             PacketBuilder ackPktb = new PacketBuilder(ackPkt);
             ackPktb.dissect();
-            if (ackPktb.getOpcode() != 4){
+            if (ackPktb.getOpcode() != ACK){
                sendErrPkt(5, ackPktb.getPort(), ackPktb.getAddress(), 4, null, "Illegal opcode: " + ackPktb.getOpcode() , null, 0);
             }
            blockNo++; 
