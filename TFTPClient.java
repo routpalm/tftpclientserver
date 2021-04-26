@@ -207,24 +207,43 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
             // receive data packet until data length < 512 ()
             PacketBuilder pktbR;
             do {
-               DatagramPacket incPacket = new DatagramPacket(new byte[1500], 512); //Create empty packet to serve as vessel for incoming packet from client
+               DatagramPacket incPacket = new DatagramPacket(new byte[1500], 512); //Create empty packet to serve as vessel for incoming packet from server
                socket.receive(incPacket); //Attempt to receive data from server
                pktbR = new PacketBuilder(incPacket);
                log("Packet received from server!");
                pktbR.dissect();
                int blockNoR = pktbR.getBlockNo();
                
-               byte[] data = pktbR.getData();
-               InputStream dataReader = null;
-               dataReader.read(data);
-               for (byte b : data) {
-                  char c = (char)b;
-                  log(c + "\n");
-               }
-               
                //send ACK with incremented block number after each received data packet
-               PacketBuilder ack = new PacketBuilder(4, SERVER_PORT, inet, blockNoR + 1, filename, null, null, 0);
-               socket.send(ack.build());
+               PacketBuilder ack = new PacketBuilder(4, 69, inet, blockNoR + 1, null, null, null, 0);
+               DatagramPacket ackPkt = ack.build();
+               log(ackPkt.getAddress() + " " + ackPkt.getPort());
+               socket.send(ackPkt);
+            
+            // opening DOS for the file being downloaded
+            try{
+            File f = new File(fileName);
+            dos = new DataOutputStream(new FileOutputStream(f));
+         }catch (IOException ioe){
+            sendErrPkt(5, pktb.getPort(), pktb.getAddress(), 4, null, "Error reading file", null, 0);
+            return;
+         } 
+            // receiving data and flushing to file
+            if (pktbR.getOpcode() == 5){
+               log(pktbR.getMsg()); //If error packet, we cant send it to dos
+               return;
+            }else if (pktbR.getOpcode() != 3){ //If illegal opcode
+               sendErrPkt(5, pktbR.getPort(), pktbR.getAddress(), 4, null, "Illegal opcode: " + pktbR.getOpcode() , null, 0);
+               return;
+            }else{
+               try{ //Set block variable to remaining data length; if less than 512, we have parsed all of the file
+                  blockSize = pktbR.getDataLen();
+                  dos.write(pktbR.getData(), 0, pktbR.getDataLen());
+                  dos.flush();
+               }catch (IOException ioe){ log("WRQ - Error writing data");} 
+            }
+         
+
                
             } while (pktbR.getDataLen() == 512);
             // send last ACK and close the socket
@@ -243,6 +262,7 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
          catch (IOException ioe) {
             log("Error: IOE " + ioe + "\n");
          }
+         socket.close();
          
       }
       
