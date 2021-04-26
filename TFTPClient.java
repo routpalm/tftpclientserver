@@ -160,10 +160,10 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
       taLog.appendText("doing upload\n");      
    }
    
-   public void doDownload()
+   public void doDownload() /* FILE TO DOWNLOAD IS HARDCODED - MUST CHANGE */
    {
       // starting a download thread for the file specified
-      DownloadThread dlThread = new DownloadThread(tfFolderPath.getText(), tfServer.getText());
+      DownloadThread dlThread = new DownloadThread("testfile.txt", tfServer.getText());
       dlThread.start();   
       taLog.appendText("doing download\n");
    }
@@ -201,17 +201,18 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
             socket = new DatagramSocket(SERVER_PORT, inet);
             socket.setSoTimeout(5000);
             // build initial RRQ packet and send
-            PacketBuilder pktb = new PacketBuilder(1, SERVER_PORT, inet, 0, filename, null, new byte[1], 0);
+            PacketBuilder pktb = new PacketBuilder(1, 69, inet, 0, filename, null, new byte[1], 0);
             socket.send(pktb.build());
             // send ack
             // receive data packet until data length < 512 ()
             PacketBuilder pktbR;
             do {
                DatagramPacket incPacket = new DatagramPacket(new byte[1500], 512); //Create empty packet to serve as vessel for incoming packet from client
-               socket.receive(incPacket); //Attempt to receive data from client
+               socket.receive(incPacket); //Attempt to receive data from server
                pktbR = new PacketBuilder(incPacket);
-               log("Packet received from client!");
+               log("Packet received from server!");
                pktbR.dissect();
+               int blockNoR = pktbR.getBlockNo();
                
                byte[] data = pktbR.getData();
                InputStream dataReader = null;
@@ -220,6 +221,10 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
                   char c = (char)b;
                   log(c + "\n");
                }
+               
+               //send ACK with incremented block number after each received data packet
+               PacketBuilder ack = new PacketBuilder(4, SERVER_PORT, inet, blockNoR + 1, filename, null, null, 0);
+               socket.send(ack.build());
                
             } while (pktbR.getDataLen() == 512);
             // send last ACK and close the socket
