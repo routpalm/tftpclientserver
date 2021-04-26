@@ -289,7 +289,7 @@ public class TFTPServer extends Application implements TFTPConstants{
             //Send ACK packet
             //First action in the while loop because we need to respond to the initial WRQ packet
             try{
-               PacketBuilder pktOut = new PacketBuilder(4, pktb.getPort(), pktb.getAddress(), blockNo, null, null, null, null);
+               PacketBuilder pktOut = new PacketBuilder(4, pktb.getPort(), pktb.getAddress(), blockNo, null, null, null, 0);
                log("WRQ - Server sending " /*+ PacketChecker.decode(pktOut)*/);
                clientSocket.send(pktOut.build());
             }catch (IOException ioe){}
@@ -297,11 +297,11 @@ public class TFTPServer extends Application implements TFTPConstants{
             
             DatagramPacket pktIn = new DatagramPacket(new byte[1500], MAX_PACKET_SIZE);
             try{
-               csocket.receive(pktIn);
+               clientSocket.receive(pktIn);
             }catch(SocketTimeoutException ste) {
                log("WRQ - Timed out awaiting DATA packet");
                return;
-            }
+            }catch(IOException ioe){}
             log("WRQ - Server received " /*+ PacketChecker.decode(pktIn)*/);
             
             blockSize = fSize; //Making sure there's still data left in the file to read and send
