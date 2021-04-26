@@ -7,7 +7,7 @@ import java.io.*;
 */
 public class PacketBuilder implements TFTPConstants{
    //Packet that will be built by build() or taken from user in the constructor
-   private DatagramPacket packet;
+   private DatagramPacket packet = null;
    
    //Attributes
    private InetAddress address = null;
@@ -97,7 +97,7 @@ public class PacketBuilder implements TFTPConstants{
          case DATA: //If opcode is 3
             try{
                if (dataLen > 0){
-                  ByteArrayOutputStream baos = new ByteArrayOutputStream(2 + data.length + 2); //BAOS is using the amt of bytes for the opcode + data + dataLen + blockNo
+                  ByteArrayOutputStream baos = new ByteArrayOutputStream(2 + 2 + data.length); //BAOS is using the amt of bytes for the opcode + data + dataLen + blockNo
                   DataOutputStream dos = new DataOutputStream(baos);
                   
                   //Writing to the ByteArray (opcode, block number, data, data length)
