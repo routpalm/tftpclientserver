@@ -207,9 +207,11 @@ public class TFTPServer extends Application implements TFTPConstants{
                   break;
                case 3:
                   log("Invalid opcode sent: " + pktbR.getOpcode());
+                  sendErrPkt(5, pktbR.getPort(), pktbR.getAddress(), 4, null, "Invalid opcode sent" + pktbR.getOpcode(), null, 0);
                   break;
                case 4:
                   log("Invalid opcode sent: " + pktbR.getOpcode());
+                  sendErrPkt(5, pktbR.getPort(), pktbR.getAddress(), 4, null, "Invalid opcode sent" + pktbR.getOpcode(), null, 0);
                   break;
                case 5:
                   log("Invalid opcode sent: " + pktbR.getOpcode());
@@ -249,12 +251,21 @@ public class TFTPServer extends Application implements TFTPConstants{
             PacketBuilder pktOut = new PacketBuilder(3, pktb.getPort(), pktb.getAddress, blockNo, null, null, block, fSize);
             log("RRQ - Server sending " + PacketChecker.decode(pktOut));
             clientSocket.send(pktOut.build());
+            blockSize = fSize; //Making sure there's still data left in the file to read and send
+            DatagramPacket ackPkt = new DatagramPacket(new byte[1500], 1500);
+            try{
+               clientSocket.receive(ackPkt);
+            }catch (SocketTimeoutException ste){
+               log("RRQ - Timed out waiting for ACK from client");
+            }
+            
+            PacketBuilder ackPktb = new PacketBuilder(ackPkt);
+            ackPktb.dissect();
+            if (ackPktb.getOpcode() != 4){
+               sendErrPkt(5, pktb.getPort(), pktb.getAddress(), 4, null, "Illegal opcode: " + ackPktb.getOpcode() , null, 0);
+            }
+            
          }
-         
-         
-         //Create DATA packet
-         //send data packet
-         //receive ACK packet
       }
       
       private void sendErrPkt(int _opcode, int _port, InetAddress _address, int _blockNo, String _filename, String _msg, byte[] _data, int _dataLen){
