@@ -162,8 +162,25 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
    
    public void doDownload() /* FILE TO DOWNLOAD IS HARDCODED - MUST CHANGE */
    {
+      TextInputDialog textInput = new TextInputDialog();
+      textInput.setHeaderText("What is the file you want to download?");
+      textInput.setContentText("Enter file to download: ");
+      textInput.showAndWait();
+      String fileName = textInput.getResult();
+      
+      FileChooser choice = new FileChooser();
+      choice.setTitle("Where to save the new file");
+      choice.setInitialDirectory(new File("."));
+      choice.getExtensionFilters().addAll(new FileChooser.ExtensionFilter[] { new FileChooser.ExtensionFilter("All Files", new String[] { "*.*" }) });
+      File savedFile = choice.showSaveDialog(stage);
+      if (savedFile == null) {
+          Alert alert = new Alert(Alert.AlertType.ERROR, "File not saved.");
+          alert.showAndWait();
+          return;
+      }
+      
       // starting a download thread for the file specified
-      DownloadThread dlThread = new DownloadThread("testfile.txt", tfServer.getText());
+      DownloadThread dlThread = new DownloadThread(fileName, savedFile, tfServer.getText());
       dlThread.start();   
       taLog.appendText("doing download\n");
    }
