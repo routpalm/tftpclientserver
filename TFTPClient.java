@@ -50,7 +50,7 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
    
    // Other attributes
    public static final int SERVER_PORT = 32001;
-   private Socket socket = null;
+   private DatagramSocket socket = null;
     
     
    /**
@@ -149,7 +149,10 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
    } 
    public void doChooseFolder()
    {
-      taLog.appendText("doing choose folder\n");
+      DirectoryChooser dc = new DirectoryChooser();
+      dc.setTitle("Choose a folder!");
+      File dir = dc.showDialog(stage); //Changing directory to user specified folder
+      tfFolderPath.setText(dir.getAbsolutePath());
    }
    
    public void doUpload()
@@ -159,6 +162,84 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
    
    public void doDownload()
    {
-      taLog.appendText("doing download\n");   
-   } 
+      // starting a download thread for the file specified
+      DownloadThread dlThread = new DownloadThread(tfFolderPath.getText(), tfServer.getText());
+      dlThread.start();   
+      taLog.appendText("doing download\n");
+   }
+   
+      //log - utility to log in thread-safety
+   private void log(String message){
+      Platform.runLater(
+            new Runnable(){
+               public void run(){
+                  taLog.appendText(message);
+               }
+            });
+   }
+   
+   /**
+    * DownloadThread - a class which handles the transaction of packets
+    * necessary for a download
+    */
+   class DownloadThread extends Thread {
+      // Attributes
+      String filename;
+      String serverIP;
+      
+      // Constructor
+      public DownloadThread(String _filename, String _serverIP) {
+         filename = _filename;
+         serverIP = _serverIP;
+      }
+      
+      // Overriding run() - sending and receiving necessary packets
+      public void run() {
+         // opening up the connection to the server
+         try {
+            InetAddress inet = InetAddress.getByName(serverIP);
+            socket = new DatagramSocket(SERVER_PORT, inet);
+            socket.setSoTimeout(5000);
+            // build initial RRQ packet and send
+            PacketBuilder pktb = new PacketBuilder(1, SERVER_PORT, inet, 0, filename, null, new byte[1], 0);
+            socket.send(pktb.build());
+            // send ack
+            // receive data packet until data length < 512 ()
+            PacketBuilder pktbR;
+            do {
+               DatagramPacket incPacket = new DatagramPacket(new byte[1500], 512); //Create empty packet to serve as vessel for incoming packet from client
+               socket.receive(incPacket); //Attempt to receive data from client
+               pktbR = new PacketBuilder(incPacket);
+               log("Packet received from client!");
+               pktbR.dissect();
+               
+               byte[] data = pktbR.getData();
+               InputStream dataReader = null;
+               dataReader.read(data);
+               for (byte b : data) {
+                  char c = (char)b;
+                  log(c + "\n");
+               }
+               
+            } while (pktbR.getDataLen() == 512);
+            // send last ACK and close the socket
+            socket.close();
+            log("Download finished, closing socket");
+         }
+         catch (SocketTimeoutException ste) {
+            log("Error: Socket Timeout " + ste + "\n");
+         }
+         catch (UnknownHostException uhe) {
+            log("Error: Unknown Host, " + uhe + "\n");
+         }
+         catch (SocketException se) {
+            log("Error: Cannot open socket " + se + "\n");
+         }
+         catch (IOException ioe) {
+            log("Error: IOE " + ioe + "\n");
+         }
+         
+      }
+      
+   }
 }

@@ -89,10 +89,11 @@ public class TFTPServer extends Application implements TFTPConstants{
       fpBot.getChildren().addAll(new Label("Log:"), taLog);
       root.getChildren().add(fpBot);
       
-      btnStartStop.setOnAction(e ->{
+      btnStartStop.setOnAction(
+         e ->{
             if (btnStartStop.getText().equals("Start")) doStart();
             else if (btnStartStop.getText().equals("Stop")) doStop();
-      });
+         });
       
       btnFolder.setOnAction(e -> { doChooseFolder(); });
       
@@ -149,55 +150,64 @@ public class TFTPServer extends Application implements TFTPConstants{
             socket = new DatagramSocket(TFTP_PORT);
             
             while (true){
-              DatagramPacket incPacket = new DatagramPacket(new byte[1500], MAX_PACKET_SIZE); //Create empty packet to serve as vessel for incoming packet from client
-              socket.receive(incPacket); //Attempt to receive data from client
-              log("Packet received from client!");
-              ClientThread ct = new ClientThread(incPacket, taLog); //Create ClientThread and pass it the incoming packet 
-              ct.start();  //Start new clientThread
+               DatagramPacket incPacket = new DatagramPacket(new byte[1500], MAX_PACKET_SIZE); //Create empty packet to serve as vessel for incoming packet from client
+               socket.receive(incPacket); //Attempt to receive data from client
+               log("Packet received from client!");
+               ClientThread ct = new ClientThread(incPacket); //Create ClientThread and pass it the incoming packet 
+               ct.start();  //Start new clientThread
             }
          }catch(Exception e){
             log("Exception occurred in ListenerThread...");
          }
       }
-    }   
+   }   
       
       //log - utility to log in thread-safety
-      private void log(String message){
-         Platform.runLater(
+   private void log(String message){
+      Platform.runLater(
             new Runnable(){
                public void run(){
                   taLog.appendText(message + "\n");
                }
             });
-      }
    }
+   
    
    class ClientThread extends Thread{
       private DatagramPacket packet = null;
       private DatagramSocket clientSocket = null;
-
-      private TextArea taLog;
+         
+      private InetAddress clientID;
          
       private DataOutputStream dos = null;
       private DataInputStream dis = null;
          
          //Constructor for ClientThread
-      public ClientThread(DatagramPacket _packet, TextArea _taLog){
+      public ClientThread(DatagramPacket _packet){
          packet = _packet;
-         taLog = _taLog;
       }
          
          //Main program for a ClientThread
       public void run(){
-            
          try{
-
+            // receiving a packet and reading in the info
+            PacketBuilder pktbR = new PacketBuilder(packet);
+            pktbR.dissect();
+            
+            byte[] data = pktbR.getData();
+            InputStream dataReader = null;
+            dataReader.read(data);
+            for (byte b : data) {
+               char c = (char)b;
+               log(c + "\n");
+            }
+            
          }catch (Exception e){
             log(clientID + "Exception occurred: " + e + "\n");
             return;
          } 
       } //of run
-
+   
          //log - utility to log in thread-safety
       private void log(String message){
          Platform.runLater(
@@ -220,3 +230,4 @@ public class TFTPServer extends Application implements TFTPConstants{
             });
       }
    }
+}
