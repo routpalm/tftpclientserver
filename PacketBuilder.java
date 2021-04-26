@@ -143,10 +143,56 @@ public class PacketBuilder implements TFTPConstants{
       return packet;
    } //end of build()
    
+   /*
+   * dissect() - takes given packet and extracts information from it given the opcode
+   */
    public void dissect(){
       if (packet != null){
-         
+         DataInputStream dis;
+         try{
+            ByteArrayInputStream bais = new ByteArrayInputStream(packet.getData(), packet.getOffset(), packet.getLength());
+            dis = new DataInputStream(bais);
+            int nread;
+            address = packet.getAddress();
+            port = packet.getPort();
+            opcode = dis.readShort();
+            
+            switch(opcode){
+               case 1: 
+                  filename = readToZ(dis);
+                  break;
+               case 2: 
+                  filename = readToZ(dis);
+                  break;
+               case 3:
+                  blockNo = dis.readShort();
+                  dataLen = packet.getLength() - 4;
+                  data = new byte[dataLen];
+                  nread = dis.read(data, 0, dataLen);
+                  break;
+               case 4:
+                  blockNo = dis.readShort();
+                  break;
+               case 5:
+                  blockNo = dis.readShort();
+                  msg = readToZ(dis);
+            }
+            dis.close();
+         }catch(Exception e){
+            System.out.println("Error dissecting packet.");
+            System.exit(2);
+         }
       }
+   }
+   
+   public static String readToZ(DataInputStream dis) throws Exception {      
+      String value = "";      
+      while (true) {         
+         byte b = dis.readByte();         
+         if (b == 0) 
+            return value;
+         value += (char) b;
+      }   
    }
    
 }

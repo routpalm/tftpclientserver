@@ -190,30 +190,86 @@ public class TFTPServer extends Application implements TFTPConstants{
          //Main program for a ClientThread
       public void run(){
          try{
+            clientSocket = new DatagramSocket();
+            clientSocket.setSoTimeout(1000);
             // receiving a packet and reading in the info
             PacketBuilder pktbR = new PacketBuilder(packet);
             pktbR.dissect();
             
-            byte[] data = pktbR.getData();
-            InputStream dataReader = null;
-            dataReader.read(data);
-            for (byte b : data) {
-               char c = (char)b;
-               log(c + "\n");
-            }
+            switch(pktbR.getOpcode()){
+               case 1:
+                  log("RRQ process initiated with file name " + pktbR.getFilename());
+                  doRRQPacket(pktbR);
+                  break;
+               case 2:
+                  log("WRQ process initiated with file name " + pktbR.getFilename());
+                  //doWRQPacket(pktbR);
+                  break;
+               case 3:
+                  log("Invalid opcode sent: " + pktbR.getOpcode());
+                  break;
+               case 4:
+                  log("Invalid opcode sent: " + pktbR.getOpcode());
+                  break;
+               case 5:
+                  log("Invalid opcode sent: " + pktbR.getOpcode());
+                  sendErrPkt(5, pktbR.getPort(), pktbR.getAddress(), 4, null, "Invalid opcode sent" + pktbR.getOpcode(), null, 0);
+                  break;   
+               }
             
          }catch (Exception e){
             log(clientID + "Exception occurred: " + e + "\n");
             return;
          } 
       } //of run
-   
+      /*
+      * doRRQPacket - takes given filename and sends file through DATA packet to client
+      */
+      private void doRRQPacket(PacketBuilder pktb){
+         //Find filename
+         String fileName = tfFolder.getText() + File.separator + pktb.getFilename();
+         log("RRQ - Opening " + fileName + "...");
+         FileInputStream fis = null;
+         try{
+            File f = new File(fileName);
+            fis = new FileInputStream(f);
+         }catch (IOException ioe){
+            sendErrPkt(5, pktb.getPort(), pktb.getAddress(), 4, null, "Error reading file", null, 0);
+         } 
+         //read file
+         int blockSize = 512;
+         int fSize = 0;
+         int blockNo = 1;
+         while(blockSize == 512){
+            byte[] block = new byte[512];
+            try{
+               fSize = fis.read(block);
+            }catch(IOException ioe){ fSize = 0;}
+            
+            PacketBuilder pktOut = new PacketBuilder(3, pktb.getPort(), pktb.getAddress, blockNo, null, null, block, fSize);
+            log("RRQ - Server sending " + PacketChecker.decode(pktOut));
+            clientSocket.send(pktOut.build());
+         }
+         
+         
+         //Create DATA packet
+         //send data packet
+         //receive ACK packet
+      }
+      
+      private void sendErrPkt(int _opcode, int _port, InetAddress _address, int _blockNo, String _filename, String _msg, byte[] _data, int _dataLen){
+         try{
+            PacketBuilder errPkt = new PacketBuilder(_opcode, _port, _address, _blockNo,  _filename, _msg, _data, _dataLen);
+            clientSocket.send(errPkt.build());
+         }catch(IOException ioe){}
+      }
+      
          //log - utility to log in thread-safety
       private void log(String message){
          Platform.runLater(
             new Runnable(){
                public void run(){
-                  taLog.appendText(message);
+                  taLog.appendText(message + "\n");
                }
             });
       }
