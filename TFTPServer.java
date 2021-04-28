@@ -230,7 +230,7 @@ public class TFTPServer extends Application implements TFTPConstants{
       private void doRRQPacket(PacketBuilder pktb){
          //Find filename
          String fileName = tfFolder.getText() + File.separator + pktb.getFilename();
-         log("RRQ - Opening " + fileName + "...");
+         log("RRQ - Opening " + fileName + "...\n");
          FileInputStream fis = null;
          try{
             File f = new File(fileName);
@@ -251,7 +251,7 @@ public class TFTPServer extends Application implements TFTPConstants{
             }catch(IOException ioe){ fSize = 0;}
             try{
                PacketBuilder pktOut = new PacketBuilder(3, pktb.getPort(), pktb.getAddress(), blockNo, null, null, block, fSize);
-               log("RRQ - Server sending " /*+ PacketChecker.decode(pktOut)*/);
+               log("RRQ - Server sending \n" /*+ PacketChecker.decode(pktOut)*/);
                clientSocket.send(pktOut.build());
                pktOut.dissect();
                nread = pktOut.getNread(); //Making sure there's still data left in the file to read and send
@@ -261,7 +261,7 @@ public class TFTPServer extends Application implements TFTPConstants{
             try{
                clientSocket.receive(ackPkt);
             }catch (SocketTimeoutException ste){
-               log("RRQ - Timed out awaiting ACK packet");
+               log("RRQ - Timed out awaiting ACK packet\n");
             }catch(IOException ioe) {}
             
             PacketBuilder ackPktb = new PacketBuilder(ackPkt);
