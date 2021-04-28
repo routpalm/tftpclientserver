@@ -257,7 +257,7 @@ public class TFTPServer extends Application implements TFTPConstants{
                nread = pktOut.getNread(); //Making sure there's still data left in the file to read and send
             }catch (IOException ioe){}
 
-            DatagramPacket ackPkt = new DatagramPacket(new byte[1500], MAX_PACKET_SIZE);
+            DatagramPacket ackPkt = new DatagramPacket(new byte[MAX_PACKET_SIZE], MAX_PACKET_SIZE);
             try{
                clientSocket.receive(ackPkt);
             }catch (SocketTimeoutException ste){
@@ -271,6 +271,7 @@ public class TFTPServer extends Application implements TFTPConstants{
                sendErrPkt(5, ackPktb.getPort(), ackPktb.getAddress(), 4, null, "RRQ - Illegal opcode: " + ackPktb.getOpcode() , null, 0);
             }
             blockNo++; //If we go through the loop again, we know it's another block.
+            log("" + nread);
          }
          try{
             clientSocket.close();

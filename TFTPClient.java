@@ -201,7 +201,7 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
     * DownloadThread - a class which handles the transaction of packets
     * necessary for a download
     */
-   class DownloadThread extends Thread {
+   class DownloadThread extends Thread implements TFTPConstants {
       // Attributes
       String filename;
       String serverIP;
@@ -220,7 +220,7 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
          // opening up the connection to the server
          try {
             InetAddress inet = InetAddress.getByName(serverIP);
-            socket = new DatagramSocket(SERVER_PORT, inet);
+            socket = new DatagramSocket();
             socket.setSoTimeout(5000);
             // build initial RRQ packet and send
             PacketBuilder pktb = new PacketBuilder(1, 69, inet, 0, filename, null, new byte[1], 0);
@@ -229,6 +229,7 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
             // receive data packet until data length < 512 ()
             PacketBuilder pktbR;
             int blockNoR;
+            int blockSize = 512;
             do {
                DatagramPacket incPacket = new DatagramPacket(new byte[1500], MAX_PACKET_SIZE); //Create empty packet to serve as vessel for incoming packet from server
                socket.receive(incPacket); //Attempt to receive data from server
@@ -239,7 +240,7 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
                
                //send ACK with incremented block number after each received data packet
                blockNoR++;
-               PacketBuilder ack = new PacketBuilder(4, 69, inet, blockNoR, null, null, null, 0);
+               PacketBuilder ack = new PacketBuilder(4, pktbR.getPort(), inet, blockNoR, null, null, null, 0);
                DatagramPacket ackPkt = ack.build();
                log(ackPkt.getAddress() + " " + ackPkt.getPort());
                socket.send(ackPkt);
@@ -250,7 +251,7 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
                   dos = new DataOutputStream(new FileOutputStream(f));
                }catch (IOException ioe){
                   blockNoR++;
-                  sendErrPkt(5, pktb.getPort(), pktb.getAddress(), blockNoR, null, "Error reading file", null, 0);
+                  sendErrPkt(5, pktbR.getPort(), pktb.getAddress(), blockNoR, null, "Error reading file", null, 0);
                   return;
                } 
             // receiving data and flushing to file
@@ -264,12 +265,13 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
                   return;
                }else{
                   try{ //Set block variable to remaining data length; if less than 512, we have parsed all of the file
-                     int blockSize = pktbR.getDataLen();
-                     dos.write(pktbR.getData(), 0, pktbR.getDataLen());
+                     blockSize = pktbR.getDataLen();
+                     dos.write(pktbR.getData(), 0, blockSize);
                      dos.flush();
                   }catch (IOException ioe){ log("RRQ - Error writing data\n");} 
                }
-            } while (pktbR.getDataLen() == 512);
+               System.out.println(blockSize);
+            } while (blockSize == 512);
             // send last ACK and close the socket
             
             socket.close();
