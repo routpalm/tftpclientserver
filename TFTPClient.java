@@ -230,7 +230,7 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
             PacketBuilder pktbR;
             int blockNoR;
             do {
-               DatagramPacket incPacket = new DatagramPacket(new byte[1500], 512); //Create empty packet to serve as vessel for incoming packet from server
+               DatagramPacket incPacket = new DatagramPacket(new byte[1500], MAX_PACKET_SIZE); //Create empty packet to serve as vessel for incoming packet from server
                socket.receive(incPacket); //Attempt to receive data from server
                pktbR = new PacketBuilder(incPacket);
                log("Packet received from server!\n");
@@ -269,9 +269,6 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
                      dos.flush();
                   }catch (IOException ioe){ log("RRQ - Error writing data\n");} 
                }
-            
-            
-               
             } while (pktbR.getDataLen() == 512);
             // send last ACK and close the socket
             
