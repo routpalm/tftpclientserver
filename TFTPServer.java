@@ -336,7 +336,7 @@ public class TFTPServer extends Application implements TFTPConstants{
          
       }
       /*
-      * sendErrPkt() - sends an error packet
+      * sendErrPkt() - sends an error packet (to the client)
       */
       private void sendErrPkt(int _opcode, int _port, InetAddress _address, int _blockNo, String _filename, String _msg, byte[] _data, int _dataLen){
          try{

@@ -47,6 +47,8 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
    //IO attributes
    ObjectOutputStream oos = null;
    ObjectInputStream ois = null;
+   DataOutputStream dos = null; // for saving data packets into a file
+   DataInputStream dis = null; // for retrieving data to upload from a file
    
    // Other attributes
    public static final int SERVER_PORT = 32001;
@@ -174,9 +176,9 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
       choice.getExtensionFilters().addAll(new FileChooser.ExtensionFilter[] { new FileChooser.ExtensionFilter("All Files", new String[] { "*.*" }) });
       File savedFile = choice.showSaveDialog(stage);
       if (savedFile == null) {
-          Alert alert = new Alert(Alert.AlertType.ERROR, "File not saved.");
-          alert.showAndWait();
-          return;
+         Alert alert = new Alert(Alert.AlertType.ERROR, "File not saved.");
+         alert.showAndWait();
+         return;
       }
       
       // starting a download thread for the file specified
@@ -203,11 +205,14 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
       // Attributes
       String filename;
       String serverIP;
+      File dlDest;
+      
       
       // Constructor
-      public DownloadThread(String _filename, String _serverIP) {
+      public DownloadThread(String _filename, File _dlDest, String _serverIP) {
          filename = _filename;
          serverIP = _serverIP;
+         dlDest = _dlDest;
       }
       
       // Overriding run() - sending and receiving necessary packets
@@ -227,7 +232,7 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
                DatagramPacket incPacket = new DatagramPacket(new byte[1500], 512); //Create empty packet to serve as vessel for incoming packet from server
                socket.receive(incPacket); //Attempt to receive data from server
                pktbR = new PacketBuilder(incPacket);
-               log("Packet received from server!");
+               log("Packet received from server!\n");
                pktbR.dissect();
                int blockNoR = pktbR.getBlockNo();
                
@@ -238,34 +243,34 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
                socket.send(ackPkt);
             
             // opening DOS for the file being downloaded
-            try{
-            File f = new File(fileName);
-            dos = new DataOutputStream(new FileOutputStream(f));
-         }catch (IOException ioe){
-            sendErrPkt(5, pktb.getPort(), pktb.getAddress(), 4, null, "Error reading file", null, 0);
-            return;
-         } 
+               try{
+                  File f = dlDest;
+                  dos = new DataOutputStream(new FileOutputStream(f));
+               }catch (IOException ioe){
+                  sendErrPkt(5, pktb.getPort(), pktb.getAddress(), 4, null, "Error reading file", null, 0);
+                  return;
+               } 
             // receiving data and flushing to file
-            if (pktbR.getOpcode() == 5){
-               log(pktbR.getMsg()); //If error packet, we cant send it to dos
-               return;
-            }else if (pktbR.getOpcode() != 3){ //If illegal opcode
-               sendErrPkt(5, pktbR.getPort(), pktbR.getAddress(), 4, null, "Illegal opcode: " + pktbR.getOpcode() , null, 0);
-               return;
-            }else{
-               try{ //Set block variable to remaining data length; if less than 512, we have parsed all of the file
-                  blockSize = pktbR.getDataLen();
-                  dos.write(pktbR.getData(), 0, pktbR.getDataLen());
-                  dos.flush();
-               }catch (IOException ioe){ log("WRQ - Error writing data");} 
-            }
-         
-
+               if (pktbR.getOpcode() == 5){
+                  log(pktbR.getMsg()); //If error packet, we cant send it to dos
+                  return;
+               }else if (pktbR.getOpcode() != 3){ //If illegal opcode
+                  sendErrPkt(5, pktbR.getPort(), pktbR.getAddress(), 4, null, "Illegal opcode: " + pktbR.getOpcode() , null, 0);
+                  return;
+               }else{
+                  try{ //Set block variable to remaining data length; if less than 512, we have parsed all of the file
+                     int blockSize = pktbR.getDataLen();
+                     dos.write(pktbR.getData(), 0, pktbR.getDataLen());
+                     dos.flush();
+                  }catch (IOException ioe){ log("WRQ - Error writing data\n");} 
+               }
+            
+            
                
             } while (pktbR.getDataLen() == 512);
             // send last ACK and close the socket
             socket.close();
-            log("Download finished, closing socket");
+            log("Download finished, closing socket\n");
          }
          catch (SocketTimeoutException ste) {
             log("Error: Socket Timeout " + ste + "\n");
@@ -283,5 +288,28 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
          
       }
       
+   } // end of DownloadThread
+   /*
+      * sendErrPkt() - sends an error packet
+      */
+   private void sendErrPkt(int _opcode, int _port, InetAddress _address, int _blockNo, String _filename, String _msg, byte[] _data, int _dataLen){
+      try{
+         PacketBuilder errPkt = new PacketBuilder(_opcode, _port, _address, _blockNo,  _filename, _msg, _data, _dataLen);
+         socket.send(errPkt.build());
+      }catch(IOException ioe){}
    }
-}
+         
+         //alert - utility to alert in thread-safety
+   private void alert(final Alert.AlertType type, final String message, final String header) {
+      Platform.runLater(
+            new Runnable() {
+               public void run() {
+                  Alert alert = new Alert(type, message);
+                  alert.setHeaderText(header);
+                  alert.showAndWait();
+               }
+            });
+   }
+
+   
+} // end of TFTPClient
