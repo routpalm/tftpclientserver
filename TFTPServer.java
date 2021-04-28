@@ -217,7 +217,7 @@ public class TFTPServer extends Application implements TFTPConstants{
                   log("Invalid opcode sent: " + pktbR.getOpcode());
                   sendErrPkt(5, pktbR.getPort(), pktbR.getAddress(), 4, null, "Invalid opcode sent" + pktbR.getOpcode(), null, 0);
                   break;   
-               }
+            }
             
          }catch (Exception e){
             log(clientID + "Exception occurred: " + e + "\n");
@@ -267,8 +267,13 @@ public class TFTPServer extends Application implements TFTPConstants{
             if (ackPktb.getOpcode() != ACK){
                sendErrPkt(5, ackPktb.getPort(), ackPktb.getAddress(), 4, null, "Illegal opcode: " + ackPktb.getOpcode() , null, 0);
             }
-           blockNo++; 
+            blockNo++; 
          }
+         try{
+            clientSocket.close();
+            fis.close();
+         }catch(Exception e) {}
+         
       }
       
       private void doWRQPacket(PacketBuilder pktb){
@@ -294,7 +299,8 @@ public class TFTPServer extends Application implements TFTPConstants{
                log("WRQ - Server sending " /*+ PacketChecker.decode(pktOut)*/);
                clientSocket.send(pktOut.build());
             }catch (IOException ioe){}
-            if (blockSize < 512) break; //If all the file data has been written, break
+            if (blockSize < 512) 
+               break; //If all the file data has been written, break
             
             DatagramPacket pktIn = new DatagramPacket(new byte[1500], MAX_PACKET_SIZE);
             try{
