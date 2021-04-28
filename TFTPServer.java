@@ -206,16 +206,16 @@ public class TFTPServer extends Application implements TFTPConstants{
                   doWRQPacket(pktbR);
                   break;
                case 3:
-                  log("Invalid opcode sent: " + pktbR.getOpcode());
-                  sendErrPkt(5, pktbR.getPort(), pktbR.getAddress(), 4, null, "Invalid opcode sent" + pktbR.getOpcode(), null, 0);
+                  log("RUN - Invalid opcode sent: " + pktbR.getOpcode());
+                  sendErrPkt(5, pktbR.getPort(), pktbR.getAddress(), 4, null, "RUN - Invalid opcode sent" + pktbR.getOpcode(), null, 0);
                   break;
                case 4:
-                  log("Invalid opcode sent: " + pktbR.getOpcode());
-                  sendErrPkt(5, pktbR.getPort(), pktbR.getAddress(), 4, null, "Invalid opcode sent" + pktbR.getOpcode(), null, 0);
+                  log("RUN - Invalid opcode sent: " + pktbR.getOpcode());
+                  sendErrPkt(5, pktbR.getPort(), pktbR.getAddress(), 4, null, "RUN - Invalid opcode sent" + pktbR.getOpcode(), null, 0);
                   break;
                case 5:
-                  log("Invalid opcode sent: " + pktbR.getOpcode());
-                  sendErrPkt(5, pktbR.getPort(), pktbR.getAddress(), 4, null, "Invalid opcode sent" + pktbR.getOpcode(), null, 0);
+                  log("RUN - Invalid opcode sent: " + pktbR.getOpcode());
+                  sendErrPkt(5, pktbR.getPort(), pktbR.getAddress(), 4, null, "RUN - Invalid opcode sent" + pktbR.getOpcode(), null, 0);
                   break;   
             }
             
@@ -240,21 +240,23 @@ public class TFTPServer extends Application implements TFTPConstants{
             sendErrPkt(5, pktb.getPort(), pktb.getAddress(), 4, null, "Error reading file", null, 0);
          } 
          //read file
-         int blockSize = 512;
+         int nread = 512;
          int fSize = 0;
          int blockNo = 1;
-         while(blockSize == 512){
+         while(nread == 512){
             byte[] block = new byte[512];
             try{
-               fSize = fis.read(block);
+               fis.read(block);
+               fSize = block.length;
             }catch(IOException ioe){ fSize = 0;}
             try{
                PacketBuilder pktOut = new PacketBuilder(3, pktb.getPort(), pktb.getAddress(), blockNo, null, null, block, fSize);
                log("RRQ - Server sending " /*+ PacketChecker.decode(pktOut)*/);
                clientSocket.send(pktOut.build());
+               pktOut.dissect();
+               nread = pktOut.getNread(); //Making sure there's still data left in the file to read and send
             }catch (IOException ioe){}
-            
-            blockSize = fSize; //Making sure there's still data left in the file to read and send
+
             DatagramPacket ackPkt = new DatagramPacket(new byte[1500], MAX_PACKET_SIZE);
             try{
                clientSocket.receive(ackPkt);
@@ -264,10 +266,11 @@ public class TFTPServer extends Application implements TFTPConstants{
             
             PacketBuilder ackPktb = new PacketBuilder(ackPkt);
             ackPktb.dissect();
+            System.out.println(ackPktb.getOpcode());
             if (ackPktb.getOpcode() != ACK){
-               sendErrPkt(5, ackPktb.getPort(), ackPktb.getAddress(), 4, null, "Illegal opcode: " + ackPktb.getOpcode() , null, 0);
+               sendErrPkt(5, ackPktb.getPort(), ackPktb.getAddress(), 4, null, "RRQ - Illegal opcode: " + ackPktb.getOpcode() , null, 0);
             }
-            blockNo++; 
+            blockNo++; //If we go through the loop again, we know it's another block.
          }
          try{
             clientSocket.close();
@@ -287,19 +290,17 @@ public class TFTPServer extends Application implements TFTPConstants{
             sendErrPkt(5, pktb.getPort(), pktb.getAddress(), 4, null, "Error reading file", null, 0);
             return;
          } 
-         //read file
-         int blockSize = 512;
-         int fSize = 0;
-         int blockNo = 1;
-         while(true){
-            //Send ACK packet
-            //First action in the while loop because we need to respond to the initial WRQ packet
-            try{
-               PacketBuilder pktOut = new PacketBuilder(4, pktb.getPort(), pktb.getAddress(), blockNo, null, null, null, 0);
-               log("WRQ - Server sending " /*+ PacketChecker.decode(pktOut)*/);
+         //Send ACK to server for initial DATA packet
+         try{
+               PacketBuilder pktOut = new PacketBuilder(4, pktb.getPort(), pktb.getAddress(), 1, null, null, null, 0);
+               log("WRQ - Server sending ACK packet" /*+ PacketChecker.decode(pktOut)*/);
                clientSocket.send(pktOut.build());
             }catch (IOException ioe){}
-            if (blockSize < 512) 
+         //read file
+         int nread = 512;
+         int blockNo = 1;
+         while(true){
+            if (nread < 512) 
                break; //If all the file data has been written, break
             
             DatagramPacket pktIn = new DatagramPacket(new byte[1500], MAX_PACKET_SIZE);
@@ -319,13 +320,18 @@ public class TFTPServer extends Application implements TFTPConstants{
                log(pktbIn.getMsg()); //If error packet, we cant send it to dos
                return;
             }else if (pktbIn.getOpcode() != 3){ //If illegal opcode
-               sendErrPkt(5, pktbIn.getPort(), pktbIn.getAddress(), 4, null, "Illegal opcode: " + pktbIn.getOpcode() , null, 0);
+               sendErrPkt(5, pktbIn.getPort(), pktbIn.getAddress(), 4, null, "WRQ - Illegal opcode: " + pktbIn.getOpcode() , null, 0);
                return;
             }else{
-               try{ //Set block variable to remaining data length; if less than 512, we have parsed all of the file
-                  blockSize = pktbIn.getDataLen();
+               try{ //Set nread to remaining data length; if less than 512, we have parsed all of the file
+                  nread = pktbIn.getNread();
                   dos.write(pktbIn.getData(), 0, pktbIn.getDataLen());
                   dos.flush();
+                  try{
+                     PacketBuilder pktOut = new PacketBuilder(4, pktb.getPort(), pktb.getAddress(), blockNo, null, null, null, 0);
+                     log("WRQ - Server sending ACK packet" /*+ PacketChecker.decode(pktOut)*/);
+                     clientSocket.send(pktOut.build());
+                  }catch (IOException ioe){}
                }catch (IOException ioe){ log("WRQ - Error writing data");} 
             }
          }
@@ -334,7 +340,8 @@ public class TFTPServer extends Application implements TFTPConstants{
             dos.close();
          }catch(Exception e) {}
          
-      }
+      } //end doWRQPacket
+      
       /*
       * sendErrPkt() - sends an error packet (to the client)
       */

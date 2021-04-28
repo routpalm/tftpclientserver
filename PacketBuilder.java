@@ -18,6 +18,7 @@ public class PacketBuilder implements TFTPConstants{
    private byte[] data = null;
    private String filename = null; 
    private String msg = null;
+   private int nread = 0;
    
    //Create with packet usually for dissection purposes 
    public PacketBuilder(DatagramPacket _packet){
@@ -53,6 +54,9 @@ public class PacketBuilder implements TFTPConstants{
       return data; }
    public int getDataLen() { 
       return dataLen; }
+   public int getNread(){
+      return nread;
+   }
       
    /*
    * build() - takes raw info from user and builds a packet corresponding to the given opcode
@@ -152,7 +156,6 @@ public class PacketBuilder implements TFTPConstants{
          try{
             ByteArrayInputStream bais = new ByteArrayInputStream(packet.getData(), packet.getOffset(), packet.getLength());
             dis = new DataInputStream(bais);
-            int nread;
             address = packet.getAddress();
             port = packet.getPort();
             opcode = dis.readShort();
@@ -180,7 +183,7 @@ public class PacketBuilder implements TFTPConstants{
             dis.close();
          }catch(Exception e){
             System.out.println("Error dissecting packet.");
-            System.exit(2);
+            System.exit(0);
          }
       }
    }
