@@ -245,16 +245,20 @@ public class TFTPServer extends Application implements TFTPConstants{
          int blockNo = 1;
          while(nread == 512){
             byte[] block = new byte[512];
+            fSize = 0;
             try{
-               fis.read(block);
-               fSize = block.length;
-            }catch(IOException ioe){ fSize = 0;}
+               fSize = fis.read(block);
+               //fSize = block.length;
+               //log("Block size: " + fSize + " : Block length: " + block.length);
+            }catch(EOFException eofe){
+               fSize = 0;
+            }catch (IOException ioe) {} 
+            
             try{
                PacketBuilder pktOut = new PacketBuilder(3, pktb.getPort(), pktb.getAddress(), blockNo, null, null, block, fSize);
-               log("RRQ - Server sending \n" /*+ PacketChecker.decode(pktOut)*/);
+               log("RRQ - Server sending DATA packet with size " + fSize);
                clientSocket.send(pktOut.build());
-               pktOut.dissect();
-               nread = pktOut.getNread(); //Making sure there's still data left in the file to read and send
+               nread = fSize; //Making sure there's still data left in the file to read and send
             }catch (IOException ioe){}
 
             DatagramPacket ackPkt = new DatagramPacket(new byte[MAX_PACKET_SIZE], MAX_PACKET_SIZE);
@@ -264,14 +268,16 @@ public class TFTPServer extends Application implements TFTPConstants{
                log("RRQ - Timed out awaiting ACK packet\n");
             }catch(IOException ioe) {}
             
+            log("RRQ - Received ACK packet from client!");
+            
             PacketBuilder ackPktb = new PacketBuilder(ackPkt);
             ackPktb.dissect();
             System.out.println(ackPktb.getOpcode());
             if (ackPktb.getOpcode() != ACK){
                sendErrPkt(5, ackPktb.getPort(), ackPktb.getAddress(), 4, null, "RRQ - Illegal opcode: " + ackPktb.getOpcode() , null, 0);
+               log("RRQ - Packet received is not an ACK packet!");
             }
             blockNo++; //If we go through the loop again, we know it's another block.
-            log("" + nread);
          }
          try{
             clientSocket.close();
