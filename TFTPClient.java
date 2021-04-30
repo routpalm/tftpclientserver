@@ -157,11 +157,6 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
       tfFolderPath.setText(dir.getAbsolutePath());
    }
    
-   public void doUpload()
-   {
-      taLog.appendText("doing upload\n");      
-   }
-   
    public void doDownload() /* FILE TO DOWNLOAD IS HARDCODED - MUST CHANGE */
    {
       TextInputDialog textInput = new TextInputDialog();
@@ -172,7 +167,7 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
       
       FileChooser choice = new FileChooser();
       choice.setTitle("Where to save the new file");
-      choice.setInitialDirectory(new File("."));
+      choice.setInitialDirectory(new File(tfFolderPath.getText()));
       choice.getExtensionFilters().addAll(new FileChooser.ExtensionFilter[] { new FileChooser.ExtensionFilter("All Files", new String[] { "*.*" }) });
       File savedFile = choice.showSaveDialog(stage);
       if (savedFile == null) {
@@ -184,7 +179,35 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
       // starting a download thread for the file specified
       DownloadThread dlThread = new DownloadThread(fileName, savedFile, tfServer.getText());
       dlThread.start();   
-      taLog.appendText("doing download\n");
+      taLog.appendText("Client doing download!\n");
+   }
+   /*
+   * doUpload() - takes files to upload/save to from user and starts UploadThread
+   */
+   public void doUpload(){
+   
+      //Get file to be uploaded to server
+      FileChooser choice = new FileChooser();
+      choice.setTitle("Choose file to be uploaded: ");
+      choice.setInitialDirectory(new File("."));
+      choice.getExtensionFilters().addAll(new FileChooser.ExtensionFilter[] { new FileChooser.ExtensionFilter("All Files", new String[] { "*.*" }) });
+      File savedFile = choice.showSaveDialog(stage);
+      if (savedFile == null) {
+         Alert alert = new Alert(Alert.AlertType.ERROR, "File not saved.");
+         alert.showAndWait();
+         return;
+      }
+      //Get file to be written to
+      TextInputDialog textInput = new TextInputDialog();
+      textInput.setHeaderText("Where would you like to save the file?");
+      textInput.setContentText("Enter file name to be written to");
+      textInput.showAndWait();
+      String fileName = textInput.getResult();
+
+      // starting an upload thread for the file specified
+      UploadThread upThread = new UploadThread(fileName, savedFile, tfServer.getText());
+      upThread.start();   
+      taLog.appendText("Client doing upload!\n");
    }
    
       //log - utility to log in thread-safety
@@ -206,7 +229,6 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
       String filename;
       String serverIP;
       File dlDest;
-      
       
       // Constructor
       public DownloadThread(String _filename, File _dlDest, String _serverIP) {
@@ -290,10 +312,111 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
             log("Error: IOE " + ioe + "\n");
          }
          socket.close();
-         
       }
       
    } // end of DownloadThread
+   
+   class UploadThread extends Thread implements TFTPConstants {
+      // Attributes
+      String filename;
+      String serverIP;
+      File upDest;
+      
+      // Constructor
+      public UploadThread(String _filename, File _upDest, String _serverIP) {
+         filename = _filename;
+         serverIP = _serverIP;
+         upDest = _upDest;
+      }
+      
+      public void run(){
+         //Initialize connection to server and send WRQ packet
+         try{
+            //Create socket + initialize server IP
+            InetAddress inet = InetAddress.getByName(serverIP);
+            DatagramSocket socket = new DatagramSocket();
+            socket.setSoTimeout(1000);
+            // build initial WRQ packet and send
+            PacketBuilder pktb = new PacketBuilder(2, 69, inet, 0, filename, null, new byte[1], 0);
+            socket.send(pktb.build());
+         }catch (SocketTimeoutException ste){
+            log("ERROR! Socket timeout: " + ste + "\n");
+         }catch(UnknownHostException uhe){
+            log("ERROR! Unknown host: " + uhe);
+         }catch(SocketException se){
+            log("ERROR! Socket exception: " + se);
+         }catch(IOException ioe){
+            log("ERROR! IOException occurred: " + ioe);
+         }
+         
+         //Attempt to receive first ACK packet from server
+         DatagramPacket initialAckPkt = new DatagramPacket(new byte[MAX_PACKET_SIZE], MAX_PACKET_SIZE);
+         try{
+            socket.receive(initialAckPkt);
+         }catch (SocketTimeoutException ste){
+            log("WRQ - Timed out awaiting ACK packet\n");
+         }catch(IOException ioe) {}
+         
+         //Start file opening
+         log("WRQ - Opening " + filename + "...\n");
+         FileInputStream fis = null;
+         try{
+            fis = new FileInputStream(upDest);
+         }catch (IOException ioe){
+            log("WRQ - Error reading file.\n");
+            sendErrPkt(5, initialAckPkt.getPort(), initialAckPkt.getAddress(), 4, null, "WRQ - Error reading file", null, 0);
+         }
+         
+         int nread = 512;
+         int fSize = 0;
+         int blockNo = 1;
+         
+         //read file in loop - send data, receive ACK, repeat
+         while(nread == 512){
+            byte[] block = new byte[512];
+            fSize = 0;
+            try{
+               fSize = fis.read(block);
+               //fSize = block.length;
+               //log("Block size: " + fSize + " : Block length: " + block.length);
+            }catch(EOFException eofe){
+               fSize = 0;
+            }catch (IOException ioe) {} 
+            
+            //Attempt to build DATA packet with block
+            try{
+               PacketBuilder pktOut = new PacketBuilder(3, initialAckPkt.getPort(), initialAckPkt.getAddress(), blockNo, null, null, block, fSize);
+               log("WRQ - Client sending DATA packet with size " + fSize);
+               socket.send(pktOut.build());
+               nread = fSize; //Making sure there's still data left in the file to read and send
+            }catch (IOException ioe){}
+            
+            //Send ACK packet 
+            DatagramPacket ackPkt = new DatagramPacket(new byte[MAX_PACKET_SIZE], MAX_PACKET_SIZE);
+            try{
+               socket.receive(ackPkt);
+            }catch (SocketTimeoutException ste){
+               log("WRQ - Timed out awaiting ACK packet\n");
+            }catch(IOException ioe) {}
+               
+            log("WRQ - Received ACK packet from server!");
+            
+            //Dissect packet and see if it's an ACK packet
+            PacketBuilder ackPktb = new PacketBuilder(ackPkt);
+            ackPktb.dissect();
+            System.out.println(ackPktb.getOpcode());
+            if (ackPktb.getOpcode() != ACK){ //checking opcode
+               sendErrPkt(5, ackPktb.getPort(), ackPktb.getAddress(), 4, null, "WRQ - Illegal opcode: " + ackPktb.getOpcode() , null, 0);
+               log("WRQ - Packet received is not an ACK packet!");
+            }
+            blockNo++; //If we go through the loop again, we know it's another block.
+         }
+         try{
+            socket.close();
+            fis.close();
+         }catch(Exception e) {}  
+      }
+   }
    /*
       * sendErrPkt() - sends an error packet
       */

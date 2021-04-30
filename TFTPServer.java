@@ -306,10 +306,7 @@ public class TFTPServer extends Application implements TFTPConstants{
          //read file
          int nread = 512;
          int blockNo = 1;
-         while(true){
-            if (nread < 512) 
-               break; //If all the file data has been written, break
-            
+         while(nread == 512){
             DatagramPacket pktIn = new DatagramPacket(new byte[1500], MAX_PACKET_SIZE);
             try{
                clientSocket.receive(pktIn);
@@ -331,7 +328,7 @@ public class TFTPServer extends Application implements TFTPConstants{
                return;
             }else{
                try{ //Set nread to remaining data length; if less than 512, we have parsed all of the file
-                  nread = pktbIn.getNread();
+                  nread = pktbIn.getDataLen();
                   dos.write(pktbIn.getData(), 0, pktbIn.getDataLen());
                   dos.flush();
                   try{
