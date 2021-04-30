@@ -388,9 +388,9 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
                PacketBuilder pktOut = new PacketBuilder(3, initialAckPkt.getPort(), initialAckPkt.getAddress(), blockNo, null, null, block, fSize);
                log("WRQ - Client sending DATA packet with size " + fSize);
                socket.send(pktOut.build());
-               nread = fSize; //Making sure there's still data left in the file to read and send
             }catch (IOException ioe){}
             
+            nread = fSize; //Making sure there's still data left in the file to read and send
             //Send ACK packet 
             DatagramPacket ackPkt = new DatagramPacket(new byte[MAX_PACKET_SIZE], MAX_PACKET_SIZE);
             try{
