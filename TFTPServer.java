@@ -316,10 +316,10 @@ public class TFTPServer extends Application implements TFTPConstants{
                return;
             }catch(IOException ioe){}
             
-            log("WRQ - Server received " /*+ PacketChecker.decode(pktIn)*/);
-            
             PacketBuilder pktbIn = new PacketBuilder(pktIn);
             pktbIn.dissect();
+            
+            log("WRQ - Server received data with size " + pktbIn.getDataLen());
             
             if (pktbIn.getOpcode() == 5){
                log(pktbIn.getMsg()); //If error packet, we cant send it to dos
