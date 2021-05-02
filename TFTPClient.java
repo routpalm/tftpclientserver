@@ -94,12 +94,12 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
       FlowPane fpRow3 = new FlowPane(8,8);
       tfFolderPath.setPrefWidth(350);
       tfFolderPath.setFont(Font.font("MONOSPACED", FontWeight.NORMAL, tfFolderPath.getFont().getSize()));
-      tfFolderPath.setText("placeHolder/directory/path/test");
+      File dir = new File(".");
+      tfFolderPath.setText(dir.getAbsolutePath());
       tfFolderPath.setPrefColumnCount(tfFolderPath.getText().length());
       ScrollPane sp = new ScrollPane();
       sp.setContent(tfFolderPath);
       
-      tfFolderPath.setPrefWidth(250);
       fpRow3.getChildren().addAll(tfFolderPath);
       root.getChildren().addAll(fpRow3, sp);
       
@@ -167,7 +167,7 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
       
       FileChooser choice = new FileChooser();
       choice.setTitle("Where to save the new file");
-      choice.setInitialDirectory(new File(tfFolderPath.getText()));
+      choice.setInitialDirectory(new File("."));
       choice.getExtensionFilters().addAll(new FileChooser.ExtensionFilter[] { new FileChooser.ExtensionFilter("All Files", new String[] { "*.*" }) });
       File savedFile = choice.showSaveDialog(stage);
       if (savedFile == null) {
@@ -331,14 +331,16 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
       
       public void run(){
          //Initialize connection to server and send WRQ packet
+         DatagramSocket socket = null;
          try{
             //Create socket + initialize server IP
             InetAddress inet = InetAddress.getByName(serverIP);
-            DatagramSocket socket = new DatagramSocket();
+            socket = new DatagramSocket();
             socket.setSoTimeout(1000);
             // build initial WRQ packet and send
             PacketBuilder pktb = new PacketBuilder(2, 69, inet, 0, filename, null, new byte[1], 0);
             socket.send(pktb.build());
+            log("Sent WRQ request... awaiting response from server\n");
          }catch (SocketTimeoutException ste){
             log("ERROR! Socket timeout: " + ste + "\n");
          }catch(UnknownHostException uhe){
@@ -350,7 +352,7 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
          }
          
          //Attempt to receive first ACK packet from server
-         DatagramPacket initialAckPkt = new DatagramPacket(new byte[MAX_PACKET_SIZE], MAX_PACKET_SIZE);
+         DatagramPacket initialAckPkt = new DatagramPacket(new byte[1500], MAX_PACKET_SIZE);
          try{
             socket.receive(initialAckPkt);
          }catch (SocketTimeoutException ste){
@@ -386,7 +388,7 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
             //Attempt to build DATA packet with block
             try{
                PacketBuilder pktOut = new PacketBuilder(3, initialAckPkt.getPort(), initialAckPkt.getAddress(), blockNo, null, null, block, fSize);
-               log("WRQ - Client sending DATA packet with size " + fSize);
+               log("WRQ - Client sending DATA packet with size " + fSize + "\n");
                socket.send(pktOut.build());
             }catch (IOException ioe){}
             
@@ -399,12 +401,11 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
                log("WRQ - Timed out awaiting ACK packet\n");
             }catch(IOException ioe) {}
                
-            log("WRQ - Received ACK packet from server!");
+            log("WRQ - Received ACK packet from server!\n");
             
             //Dissect packet and see if it's an ACK packet
             PacketBuilder ackPktb = new PacketBuilder(ackPkt);
             ackPktb.dissect();
-            System.out.println(ackPktb.getOpcode());
             if (ackPktb.getOpcode() != ACK){ //checking opcode
                sendErrPkt(5, ackPktb.getPort(), ackPktb.getAddress(), 4, null, "WRQ - Illegal opcode: " + ackPktb.getOpcode() , null, 0);
                log("WRQ - Packet received is not an ACK packet!");
@@ -414,7 +415,8 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
          try{
             socket.close();
             fis.close();
-         }catch(Exception e) {}  
+         }catch(Exception e) {}
+         log("Upload process complete.\n");  
       }
    }
    /*

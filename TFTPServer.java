@@ -302,6 +302,7 @@ public class TFTPServer extends Application implements TFTPConstants{
                PacketBuilder pktOut = new PacketBuilder(4, pktb.getPort(), pktb.getAddress(), 1, null, null, null, 0);
                log("WRQ - Server sending ACK packet" /*+ PacketChecker.decode(pktOut)*/);
                clientSocket.send(pktOut.build());
+               log("WRQ - Server sent ACK packet!");
             }catch (IOException ioe){}
          //read file
          int nread = 512;
@@ -331,14 +332,16 @@ public class TFTPServer extends Application implements TFTPConstants{
                   nread = pktbIn.getDataLen();
                   dos.write(pktbIn.getData(), 0, pktbIn.getDataLen());
                   dos.flush();
-                  try{
-                     PacketBuilder pktOut = new PacketBuilder(4, pktb.getPort(), pktb.getAddress(), blockNo, null, null, null, 0);
-                     log("WRQ - Server sending ACK packet" /*+ PacketChecker.decode(pktOut)*/);
-                     clientSocket.send(pktOut.build());
-                  }catch (IOException ioe){}
+                  
+                  PacketBuilder pktOut = new PacketBuilder(4, pktb.getPort(), pktb.getAddress(), blockNo, null, null, null, 0);
+                  log("WRQ - Server sending ACK packet" /*+ PacketChecker.decode(pktOut)*/);
+                  clientSocket.send(pktOut.build());
                }catch (IOException ioe){ log("WRQ - Error writing data");} 
             }
          }
+         
+         log("WRQ - Upload process finished.");
+         
          try{
             clientSocket.close();
             dos.close();
