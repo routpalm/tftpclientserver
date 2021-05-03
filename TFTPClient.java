@@ -115,10 +115,14 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
       
       // ROW6 - textarea
       FlowPane fpRow6 = new FlowPane(8,8);
-      taLog.setPrefHeight(600);
+      taLog.setPrefHeight(421);
       taLog.setPrefWidth(500);
-      fpRow6.getChildren().addAll(taLog);
-      root.getChildren().add(fpRow6);
+      taLog.setPrefRowCount(10);
+      taLog.setPrefColumnCount(35);
+      ScrollPane sp2 = new ScrollPane();
+      sp2.setContent(taLog);
+      fpRow6.getChildren().add(taLog);
+      root.getChildren().addAll(fpRow6);
       
       //button listeners
       btnFolder.setOnAction(this);
