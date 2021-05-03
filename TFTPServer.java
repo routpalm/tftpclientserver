@@ -78,7 +78,7 @@ public class TFTPServer extends Application implements TFTPConstants{
       FlowPane fpMid = new FlowPane(8,8);
       fpMid.setAlignment(Pos.BASELINE_LEFT);
       fpMid.getChildren().addAll(lblStartStop, btnStartStop);
-      btnStartStop.setStyle("-fx-background-color: #ff0000; ");
+      btnStartStop.setStyle("-fx-background-color: #00ff00; ");
       root.getChildren().add(fpMid);
       
       // Bot (Log) components
@@ -109,7 +109,7 @@ public class TFTPServer extends Application implements TFTPConstants{
    
    //Starts accepting connections
    public void doStart(){
-      btnStartStop.setStyle("-fx-background-color: #00ff00; ");
+      btnStartStop.setStyle("-fx-background-color: #ff0000; ");
       btnStartStop.setText("Stop");
       btnFolder.setDisable(true);
       ListenerThread th = new ListenerThread();
@@ -118,7 +118,7 @@ public class TFTPServer extends Application implements TFTPConstants{
    
    //Stops accepting connections
    public void doStop(){
-      btnStartStop.setStyle("-fx-background-color: #ff0000; ");
+      btnStartStop.setStyle("-fx-background-color: #00ff00; ");
       btnStartStop.setText("Start");
       btnFolder.setDisable(false);
       if (socket != null){
@@ -161,7 +161,8 @@ public class TFTPServer extends Application implements TFTPConstants{
                ct.start();  //Start new clientThread
             }
          }catch(Exception e){
-            log("Exception occurred in ListenerThread...");
+            log("Exception occurred in ListenerThread..." + e);
+            
          }
       }
    }   
@@ -256,21 +257,21 @@ public class TFTPServer extends Application implements TFTPConstants{
                //log("Block size: " + fSize + " : Block length: " + block.length);
             }catch(EOFException eofe){
                fSize = 0;
-            }catch (IOException ioe) {} 
+            }catch (IOException ioe) {log("IOE Exception" + ioe);} 
             
             try{
                PacketBuilder pktOut = new PacketBuilder(3, pktb.getPort(), pktb.getAddress(), blockNo, null, null, block, fSize);
                log("RRQ - Server sending DATA packet with size " + fSize);
                clientSocket.send(pktOut.build());
                nread = fSize; //Making sure there's still data left in the file to read and send
-            }catch (IOException ioe){}
+            }catch (IOException ioe){log("IOE Exception" + ioe);}
 
             DatagramPacket ackPkt = new DatagramPacket(new byte[MAX_PACKET_SIZE], MAX_PACKET_SIZE);
             try{
                clientSocket.receive(ackPkt);
             }catch (SocketTimeoutException ste){
                log("RRQ - Timed out awaiting ACK packet\n");
-            }catch(IOException ioe) {}
+            }catch(IOException ioe) {log("IOE Exception" + ioe);}
             
             log("RRQ - Received ACK packet from client!");
             
