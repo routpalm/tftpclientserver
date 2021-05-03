@@ -157,7 +157,7 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
       tfFolderPath.setText(dir.getAbsolutePath());
    }
    
-   public void doDownload() /* FILE TO DOWNLOAD IS HARDCODED - MUST CHANGE */
+   public void doDownload() 
    {
       TextInputDialog textInput = new TextInputDialog();
       textInput.setHeaderText("What is the file you want to download?");
