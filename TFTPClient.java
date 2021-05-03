@@ -268,7 +268,6 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
                blockNoR = pktbR.getBlockNo();
                
                //send ACK with incremented block number after each received data packet
-               blockNoR++;
                PacketBuilder ack = new PacketBuilder(4, pktbR.getPort(), inet, blockNoR, null, null, null, 0);
                DatagramPacket ackPkt = ack.build();
                log(ackPkt.getAddress() + " " + ackPkt.getPort());
