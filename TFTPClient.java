@@ -203,7 +203,7 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
       textInput.setContentText("Enter file name to be written to");
       textInput.showAndWait();
       String fileName = textInput.getResult();
-
+   
       // starting an upload thread for the file specified
       UploadThread upThread = new UploadThread(fileName, savedFile, tfServer.getText());
       upThread.start();   
@@ -247,8 +247,15 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
             // build initial RRQ packet and send
             PacketBuilder pktb = new PacketBuilder(1, 69, inet, 0, filename, null, new byte[1], 0);
             socket.send(pktb.build());
-            // send ack
-            // receive data packet until data length < 512 ()
+         
+            // opening DOS for the file being downloaded
+            try{
+               File f = dlDest;
+               dos = new DataOutputStream(new FileOutputStream(f));
+            }catch (IOException ioe){
+               log("Error opening DataOutputStream for dlDest");
+               return;
+            } 
             PacketBuilder pktbR;
             int blockNoR;
             int blockSize = 512;
@@ -267,15 +274,6 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
                log(ackPkt.getAddress() + " " + ackPkt.getPort());
                socket.send(ackPkt);
             
-            // opening DOS for the file being downloaded
-               try{
-                  File f = dlDest;
-                  dos = new DataOutputStream(new FileOutputStream(f));
-               }catch (IOException ioe){
-                  blockNoR++;
-                  sendErrPkt(5, pktbR.getPort(), pktb.getAddress(), blockNoR, null, "Error reading file", null, 0);
-                  return;
-               } 
             // receiving data and flushing to file
                if (pktbR.getOpcode() == 5){
                   log(pktbR.getMsg()); //If error packet, we cant send it to dos
