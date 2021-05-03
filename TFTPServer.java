@@ -284,10 +284,14 @@ public class TFTPServer extends Application implements TFTPConstants{
             }
             blockNo++; //If we go through the loop again, we know it's another block.
          }
+         
+         log("RRQ - Download finished!");
+         
          try{
             clientSocket.close();
             fis.close();
          }catch(Exception e) {}
+         
          
       }
       
