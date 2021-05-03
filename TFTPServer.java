@@ -78,6 +78,7 @@ public class TFTPServer extends Application implements TFTPConstants{
       FlowPane fpMid = new FlowPane(8,8);
       fpMid.setAlignment(Pos.BASELINE_LEFT);
       fpMid.getChildren().addAll(lblStartStop, btnStartStop);
+      btnStartStop.setStyle("-fx-background-color: #ff0000; ");
       root.getChildren().add(fpMid);
       
       // Bot (Log) components
@@ -85,7 +86,8 @@ public class TFTPServer extends Application implements TFTPConstants{
       fpBot.setAlignment(Pos.CENTER);
       taLog.setPrefRowCount(10);
       taLog.setPrefColumnCount(35);
-      taLog.setWrapText(true);
+      ScrollPane sp2 = new ScrollPane();
+      sp2.setContent(taLog);
       fpBot.getChildren().addAll(new Label("Log:"), taLog);
       root.getChildren().add(fpBot);
       
@@ -107,6 +109,7 @@ public class TFTPServer extends Application implements TFTPConstants{
    
    //Starts accepting connections
    public void doStart(){
+      btnStartStop.setStyle("-fx-background-color: #00ff00; ");
       btnStartStop.setText("Stop");
       btnFolder.setDisable(true);
       ListenerThread th = new ListenerThread();
@@ -115,6 +118,7 @@ public class TFTPServer extends Application implements TFTPConstants{
    
    //Stops accepting connections
    public void doStop(){
+      btnStartStop.setStyle("-fx-background-color: #ff0000; ");
       btnStartStop.setText("Start");
       btnFolder.setDisable(false);
       if (socket != null){
