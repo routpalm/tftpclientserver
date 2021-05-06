@@ -125,7 +125,7 @@ public class TFTPServer extends Application implements TFTPConstants{
          try { 
             socket.close();
          }catch (Exception e){
-            log("Exception while closing socket: " + e);
+            log("--> Exception while closing socket: " + e);
          }
          socket = null;
       }
@@ -161,7 +161,7 @@ public class TFTPServer extends Application implements TFTPConstants{
                ct.start();  //Start new clientThread
             }
          }catch(Exception e){
-            log("Exception occurred in ListenerThread..." + e);
+            log("--> Exception occurred in ListenerThread..." + e);
             
          }
       }
@@ -213,15 +213,15 @@ public class TFTPServer extends Application implements TFTPConstants{
                   doWRQPacket(pktbR);
                   break;
                case 3: //Invalid for our initial opcode handling
-                  log("RUN - Invalid opcode sent: " + pktbR.getOpcode());
+                  log("--> RUN - Invalid opcode sent: " + pktbR.getOpcode());
                   sendErrPkt(5, pktbR.getPort(), pktbR.getAddress(), 4, null, "RUN - Invalid opcode sent" + pktbR.getOpcode(), null, 0);
                   break;
                case 4://Invalid for our initial opcode handling
-                  log("RUN - Invalid opcode sent: " + pktbR.getOpcode());
+                  log("--> RUN - Invalid opcode sent: " + pktbR.getOpcode());
                   sendErrPkt(5, pktbR.getPort(), pktbR.getAddress(), 4, null, "RUN - Invalid opcode sent" + pktbR.getOpcode(), null, 0);
                   break;
                case 5: //Invalid for our initial opcode handling
-                  log("RUN - Invalid opcode sent: " + pktbR.getOpcode());
+                  log("--> RUN - Invalid opcode sent: " + pktbR.getOpcode());
                   sendErrPkt(5, pktbR.getPort(), pktbR.getAddress(), 4, null, "RUN - Invalid opcode sent" + pktbR.getOpcode(), null, 0);
                   break;   
             }
@@ -245,7 +245,7 @@ public class TFTPServer extends Application implements TFTPConstants{
             File f = new File(fileName);
             fis = new FileInputStream(f);
          }catch (IOException ioe){
-            log("RRQ - Error reading file.");
+            log("--> RRQ - Error reading file.");
             sendErrPkt(5, pktb.getPort(), pktb.getAddress(), 4, null, "Error reading file", null, 0);
          } 
          //read file
@@ -259,21 +259,21 @@ public class TFTPServer extends Application implements TFTPConstants{
                fSize = fis.read(block); //Having fSize hold the size of the data read into block
             }catch(EOFException eofe){
                fSize = 0;
-            }catch (IOException ioe) {log("IOE Exception" + ioe);} 
+            }catch (IOException ioe) {log("--> IOE Exception" + ioe);} 
             
             try{
                PacketBuilder pktOut = new PacketBuilder(3, pktb.getPort(), pktb.getAddress(), blockNo, null, null, block, fSize); //Sending DATA packet
                log("RRQ - Server sending DATA packet with size " + fSize);
                clientSocket.send(pktOut.build());
                nread = fSize; //Making sure there's still data left in the file to read and send
-            }catch (IOException ioe){log("IOE Exception" + ioe);}
+            }catch (IOException ioe){log("--> IOE Exception" + ioe);}
 
             //Expecting ACK response from client
             DatagramPacket ackPkt = new DatagramPacket(new byte[MAX_PACKET_SIZE], MAX_PACKET_SIZE);
             try{
                clientSocket.receive(ackPkt);
             }catch (SocketTimeoutException ste){
-               log("RRQ - Timed out awaiting ACK packet\n");
+               log("--> RRQ - Timed out awaiting ACK packet\n");
             }catch(IOException ioe) {log("IOE Exception" + ioe);}
             
             log("RRQ - Received ACK packet from client!");
@@ -284,12 +284,12 @@ public class TFTPServer extends Application implements TFTPConstants{
             System.out.println(ackPktb.getOpcode());
             if (ackPktb.getOpcode() != ACK){
                sendErrPkt(5, ackPktb.getPort(), ackPktb.getAddress(), 4, null, "RRQ - Illegal opcode: " + ackPktb.getOpcode() , null, 0);
-               log("RRQ - Packet received is not an ACK packet!");
+               log("--> RRQ - Packet received is not an ACK packet!");
             }
             blockNo++; //If we go through the loop again, we know it's another block.
          }
          
-         log("RRQ - Download finished!");
+         log("--> RRQ - Download finished!");
          
          try{
             clientSocket.close();
@@ -323,7 +323,7 @@ public class TFTPServer extends Application implements TFTPConstants{
             try{
                clientSocket.receive(pktIn);
             }catch(SocketTimeoutException ste) {
-               log("WRQ - Timed out awaiting DATA packet");
+               log("--> WRQ - Timed out awaiting DATA packet");
                return;
             }catch(IOException ioe){}
             
@@ -347,11 +347,11 @@ public class TFTPServer extends Application implements TFTPConstants{
                   PacketBuilder pktOut = new PacketBuilder(4, pktb.getPort(), pktb.getAddress(), blockNo, null, null, null, 0);
                   log("WRQ - Server sending ACK packet" /*+ PacketChecker.decode(pktOut)*/);
                   clientSocket.send(pktOut.build());
-               }catch (IOException ioe){ log("WRQ - Error writing data");} 
+               }catch (IOException ioe){ log("--> WRQ - Error writing data");} 
             }
          }
          
-         log("WRQ - Upload process finished.");
+         log("--> WRQ - Upload process finished.");
          
          try{
             clientSocket.close();
