@@ -195,9 +195,9 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
       choice.setTitle("Choose file to be uploaded: ");
       choice.setInitialDirectory(new File("."));
       choice.getExtensionFilters().addAll(new FileChooser.ExtensionFilter[] { new FileChooser.ExtensionFilter("All Files", new String[] { "*.*" }) });
-      File savedFile = choice.showSaveDialog(stage);
-      if (savedFile == null) {
-         Alert alert = new Alert(Alert.AlertType.ERROR, "File not saved.");
+      File openedFile = choice.showOpenDialog(stage);
+      if (openedFile == null) {
+         Alert alert = new Alert(Alert.AlertType.ERROR, "File not opened.");
          alert.showAndWait();
          return;
       }
@@ -209,7 +209,7 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
       String fileName = textInput.getResult();
    
       // starting an upload thread for the file specified
-      UploadThread upThread = new UploadThread(fileName, savedFile, tfServer.getText());
+      UploadThread upThread = new UploadThread(fileName, openedFile, tfServer.getText());
       upThread.start();   
       taLog.appendText("Client doing upload!\n");
    }
@@ -257,7 +257,7 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
                File f = dlDest;
                dos = new DataOutputStream(new FileOutputStream(f));
             }catch (IOException ioe){
-               log("Error opening DataOutputStream for dlDest");
+               log("--> Error opening DataOutputStream for dlDest");
                return;
             } 
             PacketBuilder pktbR;
@@ -284,33 +284,34 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
                }else if (pktbR.getOpcode() != 3){ //If illegal opcode
                   blockNoR++;
                   sendErrPkt(5, pktbR.getPort(), pktbR.getAddress(), blockNoR, null, "Illegal opcode: " + pktbR.getOpcode() , null, 0);
-                  log("Illegal opcode: " + pktbR.getOpcode() + "\n");
+                  log("--> Illegal opcode: " + pktbR.getOpcode() + "\n");
                   return;
                }else{
                   try{ //Set block variable to remaining data length; if less than 512, we have parsed all of the file
                      blockSize = pktbR.getDataLen();
                      dos.write(pktbR.getData(), 0, blockSize);
                      dos.flush();
-                  }catch (IOException ioe){ log("RRQ - Error writing data\n");} 
+                  }catch (IOException ioe){ log("--> RRQ - Error writing data\n");} 
                }
                System.out.println(blockSize);
             } while (blockSize == 512);
             // send last ACK and close the socket
             
             socket.close();
-            log("Download finished, closing socket\n");
+            
+            log("--> Download finished, closing socket\n");
          }
          catch (SocketTimeoutException ste) {
-            log("Error: Socket Timeout " + ste + "\n");
+            log("--> Error: Socket Timeout " + ste + "\n");
          }
          catch (UnknownHostException uhe) {
-            log("Error: Unknown Host, " + uhe + "\n");
+            log("--> Error: Unknown Host, " + uhe + "\n");
          }
          catch (SocketException se) {
-            log("Error: Cannot open socket " + se + "\n");
+            log("--> Error: Cannot open socket " + se + "\n");
          }
          catch (IOException ioe) {
-            log("Error: IOE " + ioe + "\n");
+            log("--> Error: IOE " + ioe + "\n");
          }
          socket.close();
       }
@@ -343,13 +344,13 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
             socket.send(pktb.build());
             log("Sent WRQ request... awaiting response from server\n");
          }catch (SocketTimeoutException ste){
-            log("ERROR! Socket timeout: " + ste + "\n");
+            log("--> ERROR! Socket timeout: " + ste + "\n");
          }catch(UnknownHostException uhe){
-            log("ERROR! Unknown host: " + uhe);
+            log("--> ERROR! Unknown host: " + uhe);
          }catch(SocketException se){
-            log("ERROR! Socket exception: " + se);
+            log("--> ERROR! Socket exception: " + se);
          }catch(IOException ioe){
-            log("ERROR! IOException occurred: " + ioe);
+            log("--> ERROR! IOException occurred: " + ioe);
          }
          
          //Attempt to receive first ACK packet from server
@@ -357,7 +358,7 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
          try{
             socket.receive(initialAckPkt);
          }catch (SocketTimeoutException ste){
-            log("WRQ - Timed out awaiting ACK packet\n");
+            log("--> WRQ - Timed out awaiting ACK packet\n");
          }catch(IOException ioe) {}
          
          //Start file opening
@@ -366,7 +367,7 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
          try{
             fis = new FileInputStream(upDest);
          }catch (IOException ioe){
-            log("WRQ - Error reading file.\n");
+            log("--> WRQ - Error reading file.\n");
             sendErrPkt(5, initialAckPkt.getPort(), initialAckPkt.getAddress(), 4, null, "WRQ - Error reading file", null, 0);
          }
          
@@ -399,7 +400,7 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
             try{
                socket.receive(ackPkt);
             }catch (SocketTimeoutException ste){
-               log("WRQ - Timed out awaiting ACK packet\n");
+               log("--> WRQ - Timed out awaiting ACK packet\n");
             }catch(IOException ioe) {}
                
             log("WRQ - Received ACK packet from server!\n");
@@ -409,7 +410,7 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
             ackPktb.dissect();
             if (ackPktb.getOpcode() != ACK){ //checking opcode
                sendErrPkt(5, ackPktb.getPort(), ackPktb.getAddress(), 4, null, "WRQ - Illegal opcode: " + ackPktb.getOpcode() , null, 0);
-               log("WRQ - Packet received is not an ACK packet!");
+               log("--> WRQ - Packet received is not an ACK packet!");
             }
             blockNo++; //If we go through the loop again, we know it's another block.
          }
@@ -417,7 +418,7 @@ public class TFTPClient extends Application implements EventHandler<ActionEvent>
             socket.close();
             fis.close();
          }catch(Exception e) {}
-         log("Upload process complete.\n");  
+         log("--> Upload process complete.\n");  
       }
    }
    /*
